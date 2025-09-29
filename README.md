@@ -1,365 +1,483 @@
-# E-Wallet API - TQ Documentation
+# 🏪 E-Commerce Wallet API - Complete Documentation
 
-## 📋 Overview
-A FastAPI-based e-commerce API with user wallet functionality, authentication, and transaction management.
+## 📋 Project Overview
+A **FastAPI-based e-commerce system** with integrated wallet functionality, JWT authentication, and comprehensive transaction management.
 
-## 🚀 Quick Start
+---
+
+## 🚀 Quick Start Guide
 
 ### Prerequisites
 - Python 3.8+
-- pip (Python package manager)
+- pip package manager
 
-### Installation
+### Installation & Setup
 
-1. **Clone the repository**
+1. **Clone and Setup Environment**
 ```bash
-git clone <your-repo-url>
-cd backend
-```
-
-2. **Create virtual environment**
-```bash
+# Create and activate virtual environment
 python -m venv venv
 # Windows
 venv\Scripts\activate
 # Mac/Linux
 source venv/bin/activate
+
+# Install dependencies
+pip install fastapi uvicorn sqlmodel python-dotenv python-jose passlib[bcrypt]
 ```
 
-3. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-4. **Environment Setup**
-Create a `.env` file:
+2. **Environment Configuration**
+Create `.env` file:
 ```env
+SECRET_KEY=your-super-secret-key-change-in-production
 DATABASE_URL=sqlite:///./test.db
-SECRET_KEY=your-secret-key-change-in-production
 ```
 
-5. **Run the application**
+3. **Run the Application**
 ```bash
-uvicorn src.main:app --reload
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at: `http://127.0.0.1:8000`
+**Access Points:**
+- **API**: http://localhost:8000
+- **Interactive Docs**: http://localhost:8000/docs
+- **Alternative Docs**: http://localhost:8000/redoc
 
-## 📚 API Endpoints
+---
 
-### 🔐 Authentication Endpoints
+## 🔐 AUTHENTICATION ENDPOINTS
 
-#### POST `/auth/register`
-Register a new user.
+### 1. Register New User
+**Creates a new user account with initial wallet balance**
 
-**Request:**
+```bash
+# Using curl
+curl -X POST "http://localhost:8000/auth/register" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "username": "john_doe",
+       "password": "SecurePass123",
+       "role": "user"
+     }'
+```
+
+**Postman Setup:**
+- **Method**: POST
+- **URL**: `http://localhost:8000/auth/register`
+- **Body** (raw JSON):
 ```json
 {
-    "username": "johndoe",
-    "password": "password123",
+    "username": "john_doe",
+    "password": "SecurePass123",
     "role": "user"
 }
 ```
 
-**Response:**
+**Success Response (201 Created):**
 ```json
 {
-    "id": "uuid",
-    "username": "johndoe",
-    "wallet_bal": 100000.0,
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "username": "john_doe",
+    "wallet_bal": 1000.0,
     "role": "user"
 }
 ```
 
-#### POST `/auth/login`
-Login and get access token.
+### 2. User Login
+**Authenticates user and returns JWT token**
 
-**Request:**
+```bash
+# Using curl
+curl -X POST "http://localhost:8000/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "username": "john_doe",
+       "password": "SecurePass123"
+     }'
+```
+
+**Postman Setup:**
+- **Method**: POST
+- **URL**: `http://localhost:8000/auth/login`
+- **Body** (raw JSON):
 ```json
 {
-    "username": "johndoe",
-    "password": "password123"
+    "username": "john_doe",
+    "password": "SecurePass123"
 }
 ```
 
-**Response:**
+**Success Response:**
 ```json
 {
-    "access_token": "jwt-token",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "token_type": "bearer"
 }
 ```
 
-### 👤 User Endpoints (Require Authentication)
+**💡 Save this token for all subsequent authenticated requests!**
 
-#### GET `/users/me`
-Get current user profile.
+---
 
-**Headers:**
+## 👤 USER PROFILE & WALLET ENDPOINTS
+
+*All these endpoints require JWT authentication*
+
+### 3. Get User Profile
+```bash
+# Using curl
+curl -X GET "http://localhost:8000/users/me" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
-Authorization: Bearer <token>
+
+**Postman Setup:**
+- **Method**: GET
+- **URL**: `http://localhost:8000/users/me`
+- **Headers**: 
+  - `Authorization: Bearer YOUR_ACCESS_TOKEN`
+
+### 4. Get Wallet Balance
+```bash
+curl -X GET "http://localhost:8000/wallet/balance" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-#### GET `/wallet/balance`
-Get current wallet balance.
+### 5. Top Up Wallet
+**Add money to user's wallet**
 
-#### POST `/wallet/top-up`
-Add money to wallet.
+```bash
+curl -X POST "http://localhost:8000/wallet/top-up" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"amount": 500.0}'
+```
 
-**Request:**
+**Postman Body:**
 ```json
 {
-    "amount": 100.0
+    "amount": 500.0
 }
 ```
 
-#### POST `/wallet/spend`
-Spend money from wallet.
+### 6. Spend Money
+**Deduct money from wallet (generic spending)**
 
-**Request:**
+```bash
+curl -X POST "http://localhost:8000/wallet/spend" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"amount": 150.0}'
+```
+
+### 7. Transfer Money to Another User
+**Send money to another user by username**
+
+```bash
+curl -X POST "http://localhost:8000/wallet/transfer" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "recipient_username": "jane_smith",
+       "amount": 200.0
+     }'
+```
+
+**Postman Body:**
 ```json
 {
-    "amount": 50.0
+    "recipient_username": "jane_smith",
+    "amount": 200.0
 }
 ```
 
-#### POST `/wallet/transfer`
-Transfer money to another user.
-
-**Request:**
+**Success Response:**
 ```json
 {
-    "recipient_username": "janedoe",
-    "amount": 25.0
+    "message": "Transfer successful",
+    "sender_balance": 800.0,
+    "recipient": "jane_smith"
 }
 ```
 
-#### GET `/transactions`
-Get user's transaction history.
+### 8. Get Transaction History
+```bash
+curl -X GET "http://localhost:8000/transactions" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
-### 🛍️ Item Endpoints
+**Response:**
+```json
+[
+    {
+        "id": "txn-123",
+        "user_id": "user-123",
+        "product_id": null,
+        "amount": 500.0,
+        "timestamp": "2024-01-15T10:30:00Z",
+        "type": "top_up"
+    },
+    {
+        "id": "txn-124",
+        "user_id": "user-123",
+        "product_id": "item-456",
+        "amount": -150.0,
+        "timestamp": "2024-01-15T11:15:00Z",
+        "type": "purchase"
+    }
+]
+```
 
-#### GET `/items`
-Get all available items.
+---
 
-#### GET `/items/{item_id}`
-Get specific item details.
+## 🛍️ PRODUCT CATALOG ENDPOINTS
 
-#### POST `/items/buy/{item_id}`
-Purchase an item.
+### 9. Browse All Items
+**Public endpoint - no authentication required**
 
-### 👑 Admin Endpoints (Require Admin Role)
+```bash
+curl -X GET "http://localhost:8000/items"
+```
 
-#### POST `/admin/items`
-Create new item (Admin only).
+### 10. Get Specific Item Details
+```bash
+curl -X GET "http://localhost:8000/items/ITEM_ID_HERE"
+```
 
-**Request:**
+### 11. Purchase an Item
+**Buy an item using wallet balance**
+
+```bash
+curl -X POST "http://localhost:8000/items/buy/ITEM_ID_HERE" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Success Response:**
 ```json
 {
-    "name": "Laptop",
-    "price": 999.99,
+    "message": "Purchase successful",
+    "user": {
+        "id": "user-123",
+        "username": "john_doe",
+        "wallet_bal": 650.0,
+        "role": "user"
+    },
+    "item": {
+        "id": "item-456",
+        "name": "Wireless Headphones",
+        "price": 150.0,
+        "stock_val": 9
+    },
+    "transaction": {
+        "id": "txn-125",
+        "user_id": "user-123",
+        "product_id": "item-456",
+        "amount": -150.0,
+        "timestamp": "2024-01-15T11:20:00Z",
+        "type": "purchase"
+    }
+}
+```
+
+---
+
+## 👑 ADMIN ENDPOINTS
+
+*Requires admin role in JWT token*
+
+### 12. Create New Item (Admin Only)
+```bash
+curl -X POST "http://localhost:8000/admin/items" \
+     -H "Authorization: Bearer ADMIN_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Gaming Laptop",
+       "price": 1299.99,
+       "stock_val": 10
+     }'
+```
+
+**Postman Body:**
+```json
+{
+    "name": "Gaming Laptop",
+    "price": 1299.99,
     "stock_val": 10
 }
 ```
 
-#### GET `/admin/users`
-List all users (Admin only).
-
-### 🩺 Health & Debug Endpoints
-
-#### GET `/health`
-Check API status.
-
-#### POST `/test-db`
-Test database connection.
-
-#### GET `/test-get-user/{username}`
-Check if user exists.
-
-## 🔐 Authentication
-
-### How to Use Authentication:
-
-1. **Register a user:**
+### 13. List All Users (Admin Only)
 ```bash
-curl -X POST "http://127.0.0.1:8000/auth/register" \
-     -H "Content-Type: application/json" \
-     -d '{"username":"testuser","password":"testpass123","role":"user"}'
+curl -X GET "http://localhost:8000/admin/users" \
+     -H "Authorization: Bearer ADMIN_ACCESS_TOKEN"
 ```
-
-2. **Login to get token:**
-```bash
-curl -X POST "http://127.0.0.1:8000/auth/login" \
-     -H "Content-Type: application/json" \
-     -d '{"username":"testuser","password":"testpass123"}'
-```
-
-3. **Use token in requests:**
-```bash
-curl -X GET "http://127.0.0.1:8000/users/me" \
-     -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-## 🗄️ Database Models
-
-### User
-- `id`: UUID (Primary Key)
-- `username`: String (Unique)
-- `password_hash`: String
-- `wallet_bal`: Float (Default: 100,000.0)
-- `role`: String ('user' or 'admin')
-
-### Item
-- `id`: UUID (Primary Key)
-- `name`: String
-- `price`: Float
-- `stock_val`: Integer
-
-### Transaction
-- `id`: UUID (Primary Key)
-- `user_id`: UUID (Foreign Key)
-- `product_id`: UUID (Foreign Key, Optional)
-- `amount`: Float
-- `timestamp`: DateTime
-- `type`: String ('purchase', 'transfer', 'refund', etc.)
-
-## 🛠️ Development
-
-### Project Structure
-```
-backend/
-├── src/
-│   ├── main.py          # FastAPI application & endpoints
-│   ├── models.py        # Database models
-│   ├── schema.py        # Pydantic schemas
-│   ├── crud.py          # Database operations
-│   ├── auth.py          # Authentication & authorization
-│   └── database.py      # Database connection
-├── requirements.txt
-└── .env
-```
-
-### Running Tests
-```bash
-# Test database connection
-curl -X POST "http://127.0.0.1:8000/test-db"
-
-# Test user creation
-curl -X GET "http://127.0.0.1:8000/test-get-user/username"
-```
-
-## 📊 Default Data
-
-- New users start with **100,000.0** wallet balance
-- Default user role is **"user"**
-- Admin users can be created with `"role": "admin"`
 
 ---
 
-# 📁 How to Put on GitHub
+## 🩺 HEALTH & DEBUGGING ENDPOINTS
 
-## Step 1: Prepare Your Project
-
-1. **Create necessary files:**
-
-   `requirements.txt`
-   ```txt
-   fastapi==0.104.1
-   uvicorn==0.24.0
-   sqlmodel==0.0.14
-   python-dotenv==1.0.0
-   python-jose==3.3.0
-   passlib[bcrypt]==1.7.4
-   sqlalchemy==2.0.23
-   ```
-
-   `.gitignore`
-   ```gitignore
-   # Python
-   __pycache__/
-   *.pyc
-   *.pyo
-   *.pyd
-   .Python
-   env/
-   venv/
-   
-   # Database
-   *.db
-   *.sqlite3
-   
-   # Environment
-   .env
-   
-   # IDE
-   .vscode/
-   .idea/
-   *.swp
-   *.swo
-   ```
-
-## Step 2: Initialize Git Repository
-
+### 14. Health Check
 ```bash
-# Initialize git
-git init
-
-# Add all files
-git add .
-
-# Make initial commit
-git commit -m "Initial commit: E-Wallet API with FastAPI and SQLModel"
+curl -X GET "http://localhost:8000/health"
 ```
 
-## Step 3: Create GitHub Repository
-
-1. Go to [GitHub.com](https://github.com)
-2. Click "+" → "New repository"
-3. Name: `e-wallet-api`
-4. Description: "A FastAPI-based e-commerce API with user wallet functionality"
-5. Choose Public/Private
-6. **Don't** initialize with README (we'll add ours)
-
-## Step 4: Connect and Push
-
+### 15. Test Database Connection
 ```bash
-# Add remote origin
-git remote add origin https://github.com/YOUR_USERNAME/e-wallet-api.git
-
-# Push to GitHub
-git branch -M main
-git push -u origin main
+curl -X POST "http://localhost:8000/test-db"
 ```
 
-## Step 5: Add Project Details (Optional)
+### 16. Check User Existence
+```bash
+curl -X GET "http://localhost:8000/test-get-user/john_doe"
+```
 
-Create `README.md` in your project root with the documentation above.
+---
 
-## 🚀 Deployment Ready Features
+## 🔄 COMPLETE WORKFLOW EXAMPLES
 
-- **Environment variables** for configuration
-- **Database migrations** ready
-- **JWT authentication** implemented
-- **Role-based access control**
-- **Comprehensive error handling**
-- **API documentation** auto-generated at `/docs`
+### Example 1: Complete Shopping Experience
 
-## 📝 API Documentation
+```bash
+# 1. Register (if new user)
+curl -X POST "http://localhost:8000/auth/register" \
+     -H "Content-Type: application/json" \
+     -d '{"username":"shopper1","password":"pass123","role":"user"}'
 
-Visit `http://127.0.0.1:8000/docs` for interactive Swagger documentation after running the application.
+# 2. Login and save token
+TOKEN=$(curl -s -X POST "http://localhost:8000/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{"username":"shopper1","password":"pass123"}' | jq -r '.access_token')
 
-## 🔧 Troubleshooting
+# 3. Check balance
+curl -X GET "http://localhost:8000/wallet/balance" \
+     -H "Authorization: Bearer $TOKEN"
+
+# 4. Browse items
+curl -X GET "http://localhost:8000/items"
+
+# 5. Purchase item (replace ITEM_ID with actual ID)
+curl -X POST "http://localhost:8000/items/buy/ITEM_ID" \
+     -H "Authorization: Bearer $TOKEN"
+
+# 6. Check transaction history
+curl -X GET "http://localhost:8000/transactions" \
+     -H "Authorization: Bearer $TOKEN"
+```
+
+### Example 2: Money Transfer Between Users
+
+```bash
+# User A transfers to User B
+
+# User A login
+TOKEN_A=$(curl -s -X POST "http://localhost:8000/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{"username":"user_a","password":"pass123"}' | jq -r '.access_token')
+
+# Transfer money to User B
+curl -X POST "http://localhost:8000/wallet/transfer" \
+     -H "Authorization: Bearer $TOKEN_A" \
+     -H "Content-Type: application/json" \
+     -d '{"recipient_username":"user_b","amount":100.0}'
+```
+
+---
+
+## 🛡️ AUTHENTICATION FLOW
+
+### How JWT Tokens Work:
+1. **Login** → Get JWT token containing user identity and role
+2. **Subsequent Requests** → Include token in `Authorization: Bearer <token>` header
+3. **Server Validates** → Decodes token, verifies signature, checks expiration
+4. **Access Control** → Admin endpoints require `is_admin: true` in token
+
+### Token Structure (Decoded):
+```json
+{
+  "sub": "john_doe",
+  "is_admin": false,
+  "exp": 1730000000
+}
+```
+
+---
+
+## 💰 TRANSACTION TYPES
+
+| Type | Amount | Description |
+|------|--------|-------------|
+| `top_up` | Positive | Adding money to wallet |
+| `spend` | Negative | Generic spending |
+| `purchase` | Negative | Buying specific item |
+| `transfer_out` | Negative | Sending money to another user |
+| `transfer_in` | Positive | Receiving money from another user |
+
+---
+
+## ⚠️ ERROR HANDLING
+
+### Common HTTP Status Codes:
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request (validation errors, insufficient funds)
+- `401` - Unauthorized (invalid/missing token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found
+- `500` - Internal Server Error
+
+### Example Error Responses:
+```json
+{
+    "detail": "Insufficient funds"
+}
+```
+```json
+{
+    "detail": "Could not validate credentials"
+}
+```
+
+---
+
+## 📊 DEFAULT CONFIGURATION
+
+- **Initial User Balance**: 1000.0
+- **Token Expiration**: 30 minutes
+- **Password Requirements**: Minimum 8 characters
+- **Username Requirements**: Alphanumeric + underscore, 3-50 characters
+
+---
+
+## 🔧 TROUBLESHOOTING
 
 ### Common Issues:
 
-1. **Database connection error**: Check `.env` file and database URL
-2. **Import errors**: Ensure you're in the correct directory and virtual environment is activated
-3. **Authentication errors**: Verify JWT token is included in Authorization header
-4. **Permission errors**: Check user role for admin endpoints
+1. **"Could not validate credentials"**
+   - Token expired or invalid
+   - Missing Authorization header
 
-### Debug Endpoints:
-- `/health` - API status
-- `/test-db` - Database connection test
-- `/test-get-user/{username}` - User existence check
+2. **"Insufficient funds"**
+   - Wallet balance less than requested amount
 
-This API provides a complete e-wallet system with user management, transactions, and inventory management!
+3. **"Username already registered"**
+   - Username must be unique
+
+4. **"Item not found"**
+   - Invalid item ID
+
+### Debug Tools:
+- Check `/health` endpoint
+- Use `/test-db` to verify database connection
+- Check server logs for detailed errors
+
+---
+
+## 🚀 PRODUCTION DEPLOYMENT NOTES
+
+1. **Change SECRET_KEY** in production
+2. **Use PostgreSQL** instead of SQLite
+3. **Set proper CORS** origins
+4. **Use environment variables** for all configurations
+5. **Implement rate limiting**
+6. **Add proper logging** and monitoring
+
+This API provides a complete e-commerce experience with secure wallet functionality, user management, and comprehensive transaction tracking!
