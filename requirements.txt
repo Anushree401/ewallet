@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlmodel
+databases
+async-exit-stack
+async-generator
+pydantic
+python-jose
+passlib[bcrypt]
+python-dotenv
+pytest
+httpx
+requests
+logging
+pytest
