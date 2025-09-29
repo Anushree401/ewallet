@@ -7,7 +7,7 @@ load_dotenv()
 # Use SQLite for testing instead of PostgreSQL
 DATABASE_URL = "sqlite:///./test.db"
 
-engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
 
 def init_db():
     SQLModel.metadata.create_all(engine)

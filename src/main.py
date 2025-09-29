@@ -1,9 +1,4 @@
-'''
-FastAPI application setup with all endpoints
-'''
-
 from fastapi import FastAPI, Depends, HTTPException, status
-from uuid import UUID
 from typing import List 
 from contextlib import asynccontextmanager
 import logging
@@ -24,7 +19,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Now import other modules AFTER the lifespan definition
+# Import your modules AFTER lifespan defined
 from src.models import User, Transaction
 from src.schema import (
     UserCreateSchema, UserLoginSchema, UserSchema,
@@ -41,18 +36,16 @@ from src.auth import (
     get_current_admin_user
 )
 
-# auth endpt 
+# auth endpoint
 @app.post("/auth/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreateSchema):
     try:
         user_data = create_user(
             username=user.username,
             password=user.password,
-            role=user.role or "user"  
+            role=user.role or "user"
         )
-        
         return UserSchema(**user_data)
-        
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -65,30 +58,29 @@ def register(user: UserCreateSchema):
 @app.post("/auth/login")
 def login(user: UserLoginSchema):
     db_user = get_user_by_username(user.username)
-    if not db_user or not verify_password(user.password, db_user.password_hash):
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-    
     access_token = create_access_token(
-        data={"sub": db_user.username, "role": db_user.role}
+        data={"sub": db_user.username, "is_admin": db_user.is_admin}
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# user endpt 
+# user endpoint
 @app.get("/users/me", response_model=UserSchema)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return UserSchema(
         id=current_user.id,
         username=current_user.username,
-        wallet_bal=current_user.wallet_bal,
-        role=current_user.role
+        wallet_bal=current_user.balance,
+        role="admin" if current_user.is_admin else "user"
     )
 
 @app.get("/wallet/balance", response_model=float)
 def get_balance(current_user: User = Depends(get_current_user)):
-    return current_user.wallet_bal
+    return current_user.balance
 
 @app.post("/wallet/top-up", response_model=UserSchema)
 def top_up_wallet_endpoint(
@@ -101,12 +93,11 @@ def top_up_wallet_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to top up wallet"
         )
-    
     return UserSchema(
         id=user.id,
         username=user.username,
-        wallet_bal=user.wallet_bal,
-        role=user.role
+        wallet_bal=user.balance,
+        role="admin" if user.is_admin else "user"
     )
 
 @app.post("/wallet/spend", response_model=UserSchema)
@@ -120,12 +111,11 @@ def spend_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Insufficient funds"
         )
-    
     return UserSchema(
         id=user.id,
         username=user.username,
-        wallet_bal=user.wallet_bal,
-        role=user.role
+        wallet_bal=user.balance,
+        role="admin" if user.is_admin else "user"
     )
 
 @app.post("/wallet/transfer", response_model=dict)
@@ -138,32 +128,35 @@ def transfer_money_endpoint(
         request.recipient_username,
         request.amount
     )
-    
     if not sender or not recipient:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Transfer failed: insufficient funds, invalid recipient, or self-transfer not allowed"
         )
-    
     return {
         "message": "Transfer successful",
-        "sender_balance": sender.wallet_bal,
+        "sender_balance": sender.balance,
         "recipient": recipient.username
     }
 
 @app.get("/transactions", response_model=List[TransactionSchema])
 def get_transactions(current_user: User = Depends(get_current_user)):
     transactions = get_user_transactions(current_user.id)
-    return [
-        TransactionSchema(
-            id=transaction.id,
-            user_id=transaction.user_id,
-            product_id=transaction.product_id,
-            amount=transaction.amount,
-            timestamp=transaction.timestamp,
-            type=transaction.type
-        ) for transaction in transactions
-    ]
+    transaction_schemas = []
+    for transaction in transactions:
+        # Handle the Optional user_id field
+        user_id_str = str(transaction.user_id) if transaction.user_id else ""
+        transaction_schemas.append(
+            TransactionSchema(
+                id=transaction.id,
+                user_id=user_id_str,
+                product_id=transaction.product_id,
+                amount=transaction.amount,
+                timestamp=transaction.timestamp,
+                type=transaction.transaction_type
+            )
+        )
+    return transaction_schemas
 
 # Item Endpoints
 @app.get("/items", response_model=List[ItemSchema])
@@ -179,7 +172,7 @@ def get_items():
     ]
 
 @app.get("/items/{item_id}", response_model=ItemSchema)
-def get_item(item_id: UUID):
+def get_item(item_id: str):
     item = get_item_by_id(item_id)
     if not item:
         raise HTTPException(
@@ -195,23 +188,26 @@ def get_item(item_id: UUID):
 
 @app.post("/items/buy/{item_id}", response_model=dict)
 def buy_item_endpoint(
-    item_id: UUID,
+    item_id: str,
     current_user: User = Depends(get_current_user)
 ):
     user, item, transaction = buy_item(current_user.id, item_id)
-    if not transaction or not user or not item:  # Add checks for user and item
+    if not transaction or not user or not item:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Purchase failed: insufficient balance, out of stock, or invalid item"
         )
+    
+    # Handle the Optional user_id field for transaction
+    transaction_user_id = str(transaction.user_id) if transaction.user_id else ""
     
     return {
         "message": "Purchase successful",
         "user": UserSchema(
             id=user.id,
             username=user.username,
-            wallet_bal=user.wallet_bal,
-            role=user.role
+            wallet_bal=user.balance,
+            role="admin" if user.is_admin else "user"
         ),
         "item": ItemSchema(
             id=item.id,
@@ -221,15 +217,15 @@ def buy_item_endpoint(
         ),
         "transaction": TransactionSchema(
             id=transaction.id,
-            user_id=transaction.user_id,
+            user_id=transaction_user_id,
             product_id=transaction.product_id,
             amount=transaction.amount,
             timestamp=transaction.timestamp,
-            type=transaction.type
+            type=transaction.transaction_type
         )
     }
 
-# admin endpt
+# admin endpoint
 @app.post("/admin/items", response_model=ItemSchema, status_code=status.HTTP_201_CREATED)
 def create_item(
     item: ItemCreateSchema,
@@ -244,6 +240,7 @@ def create_item(
             stock_val=new_item.stock_val
         )
     except Exception as e:
+        logger.error(f"Failed to create item: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create item"
@@ -257,8 +254,8 @@ def list_all_users(current_user: User = Depends(get_current_admin_user)):
         UserSchema(
             id=user.id,
             username=user.username,
-            wallet_bal=user.wallet_bal,
-            role=user.role
+            wallet_bal=user.balance,
+            role="admin" if user.is_admin else "user"
         ) for user in users
     ]
 
@@ -274,12 +271,12 @@ def test_db_operation():
     from sqlmodel import select
     
     try:
-        with get_session() as session:
-            # Test a simple query
-            result = session.exec(select(1))
-            return {"status": "Database connection working", "test_query": result.first()}
+        session = next(get_session())
+        result = session.exec(select(1))
+        return {"status": "Database connection working", "test_query": result.first()}
     except Exception as e:
         return {"status": "Database error", "error": str(e)}
+
 @app.get("/test-get-user/{username}")
 def test_get_user(username: str):
     from src.crud import get_user_by_username
@@ -289,8 +286,8 @@ def test_get_user(username: str):
             "exists": True,
             "id": str(user.id),
             "username": user.username,
-            "wallet_bal": user.wallet_bal,
-            "role": user.role
+            "wallet_bal": user.balance,
+            "role": "admin" if user.is_admin else "user"
         }
     else:
         return {"exists": False}
